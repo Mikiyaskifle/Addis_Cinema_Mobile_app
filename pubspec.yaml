@@ -1,0 +1,36 @@
+name: addis_cinema
+description: AddisCinema - Movie Booking App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cached_network_image: ^3.3.1
+  url_launcher: ^6.2.5
+  youtube_player_flutter: ^9.1.3
+  flutter_inappwebview: ^6.1.5
+  qr_flutter: ^4.1.0
+  share_plus: ^7.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#2B2020"
+  adaptive_icon_foreground: "assets/icon/app_icon_fg.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
