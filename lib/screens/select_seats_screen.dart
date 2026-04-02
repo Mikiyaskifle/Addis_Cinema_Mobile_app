@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
-import 'booking_confirmation_screen.dart';
+import 'concession_screen.dart';
 
 class SelectSeatsScreen extends StatefulWidget {
   final Movie movie;
@@ -17,7 +17,7 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
 
   final List<String> _times = ['12:30', '15:00', '18:30', '19:30'];
   final List<String> _types = ['Extreme 3D', 'Realt 3D', 'Extreme 2D', '4DX 3D'];
-  final double _pricePerSeat = 4.50;
+  final double _pricePerSeat = 150.0;
 
   // rows x cols = 8x9 = 72 seats; pre-taken seats
   final Set<int> _takenSeats = {5, 6, 14, 15, 23, 24, 31, 32, 40, 41, 49, 50};
@@ -221,13 +221,13 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
       child: ElevatedButton(
         onPressed: _selectedSeats.isEmpty ? null : () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => BookingConfirmationScreen(
+          MaterialPageRoute(builder: (_) => ConcessionScreen(
             movie: widget.movie,
             date: 'June 5, 2023',
             time: _times[_selectedTimeIndex],
             screenType: _types[_selectedTypeIndex],
             seatIndices: _selectedSeats.toList()..sort(),
-            totalPrice: _selectedSeats.length * _pricePerSeat,
+            ticketTotal: _selectedSeats.length * _pricePerSeat,
           )),
         ),
         style: ElevatedButton.styleFrom(
@@ -246,7 +246,7 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
               const SizedBox(width: 12),
               Container(width: 1, height: 20, color: Colors.white38),
               const SizedBox(width: 12),
-              Text('€ ${total.toStringAsFixed(2)}',
+              Text('ETB ${total.toStringAsFixed(0)}',
                 style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ],
