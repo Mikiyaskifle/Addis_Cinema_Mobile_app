@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../models/concession_item.dart';
 import 'booking_confirmation_screen.dart';
@@ -8,15 +7,19 @@ class _PaymentMethod {
   final String id;
   final String name;
   final String subtitle;
-  final String logoUrl;
   final Color color;
+  final Color textColor;
+  final String initial;
+  final IconData icon;
 
   const _PaymentMethod({
     required this.id,
     required this.name,
     required this.subtitle,
-    required this.logoUrl,
     required this.color,
+    required this.textColor,
+    required this.initial,
+    required this.icon,
   });
 }
 
@@ -25,29 +28,37 @@ const _methods = [
     id: 'telebirr',
     name: 'TeleBirr',
     subtitle: 'Ethio Telecom Mobile Money',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Telebirr_Logo.png/320px-Telebirr_Logo.png',
     color: Color(0xFF00A651),
+    textColor: Colors.white,
+    initial: 'T',
+    icon: Icons.phone_android,
   ),
   _PaymentMethod(
     id: 'cbe',
-    name: 'Commercial Bank of Ethiopia',
-    subtitle: 'CBE Birr / Internet Banking',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Commercial_Bank_of_Ethiopia_logo.svg/320px-Commercial_Bank_of_Ethiopia_logo.svg.png',
+    name: 'CBE Birr',
+    subtitle: 'Commercial Bank of Ethiopia',
     color: Color(0xFF003087),
+    textColor: Colors.white,
+    initial: 'C',
+    icon: Icons.account_balance,
   ),
   _PaymentMethod(
     id: 'awash',
     name: 'Awash Bank',
     subtitle: 'Awash Mobile Banking',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Awash_Bank_Logo.png/320px-Awash_Bank_Logo.png',
     color: Color(0xFFE31837),
+    textColor: Colors.white,
+    initial: 'A',
+    icon: Icons.account_balance_wallet,
   ),
   _PaymentMethod(
     id: 'abyssinia',
     name: 'Bank of Abyssinia',
     subtitle: 'BOA Mobile Banking',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Bank_of_Abyssinia_logo.png/320px-Bank_of_Abyssinia_logo.png',
     color: Color(0xFF1B4F8A),
+    textColor: Colors.white,
+    initial: 'B',
+    icon: Icons.savings,
   ),
 ];
 
@@ -218,23 +229,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
             Container(
               width: 56, height: 56,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                color: method.color,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: method.color.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))],
               ),
-              padding: const EdgeInsets.all(6),
-              child: CachedNetworkImage(
-                imageUrl: method.logoUrl,
-                fit: BoxFit.contain,
-                errorWidget: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    color: method.color,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(method.name[0],
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22)),
-                  ),
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(method.icon, color: Colors.white, size: 20),
+                  const SizedBox(height: 2),
+                  Text(method.initial,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
               ),
             ),
             const SizedBox(width: 14),
