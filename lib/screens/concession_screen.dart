@@ -2,7 +2,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../models/concession_item.dart';
-import 'booking_confirmation_screen.dart';
+import 'payment_screen.dart';
 
 class ConcessionScreen extends StatefulWidget {
   final Movie movie;
@@ -230,7 +230,7 @@ class _ConcessionScreenState extends State<ConcessionScreen>
 
   void _proceed() {
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => BookingConfirmationScreen(
+      builder: (_) => PaymentScreen(
         movie: widget.movie,
         date: widget.date,
         time: widget.time,
