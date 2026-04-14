@@ -75,18 +75,32 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
     super.dispose();
   }
 
-  void _shareTicket() {
-    Share.share(
-      '🎬 AddisCinema Ticket\n'
-      '━━━━━━━━━━━━━━━━━━\n'
-      '🎥 ${widget.movie.title.replaceAll("\n", " ")}\n'
-      '📅 ${widget.date}  ⏰ ${widget.time}\n'
-      '💺 Seats: ${_seatLabels.join(", ")}\n'
-      '🎞 ${widget.screenType}\n'
-      '💰 Total: ETB ${widget.totalPrice.toStringAsFixed(0)}\n'
-      '━━━━━━━━━━━━━━━━━━\n'
-      'See you at the cinema! 🍿',
-    );
+  Future<void> _shareTicket() async {
+    try {
+      // Capture ticket as image
+      final imageBytes = await _screenshotController.capture(pixelRatio: 3.0);
+      if (imageBytes == null) throw Exception('Failed to capture ticket');
+
+      // Save to temp file
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/addiscinema_ticket.png');
+      await file.writeAsBytes(imageBytes);
+
+      // Share as image file
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'image/png')],
+        text: '🎬 My AddisCinema Ticket — ${widget.movie.title.replaceAll("\n", " ")}',
+        subject: 'AddisCinema Ticket',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to share ticket: $e'),
+          backgroundColor: Colors.red.shade900,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
   }
 
   Future<void> _downloadTicket() async {
