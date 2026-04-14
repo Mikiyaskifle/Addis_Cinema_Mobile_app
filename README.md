@@ -1,6 +1,6 @@
 # 🎬 AddisCinema
 
-A full-featured cinema booking mobile app built with Flutter. AddisCinema lets users browse movies, watch trailers inline, select seats, order food & drinks, and receive QR-coded tickets — all in a sleek dark-themed UI.
+AddisCinema is a Flutter-based movie booking app. It allows users to browse movies, watch trailers, select seats, order food, and make payments. The system uses animations, QR code tickets, and local storage features to provide a complete cinema booking experience.
 
 ---
 
