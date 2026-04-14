@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:screenshot/screenshot.dart';
 import '../models/movie.dart';
 import '../models/concession_item.dart';
 import 'main_shell.dart';
@@ -36,6 +41,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  final ScreenshotController _screenshotController = ScreenshotController();
+  bool _downloading = false;
 
   List<String> get _seatLabels {
     const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -82,6 +89,88 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
     );
   }
 
+  Future<void> _downloadTicket() async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+
+    try {
+      // Request permission
+      PermissionStatus status;
+      if (Platform.isAndroid) {
+        final sdkInt = await _getAndroidSdkInt();
+        if (sdkInt >= 33) {
+          status = await Permission.photos.request();
+        } else {
+          status = await Permission.storage.request();
+        }
+      } else {
+        status = await Permission.photos.request();
+      }
+
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Storage permission required to download ticket'),
+              backgroundColor: Color(0xFF1C1C1E),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        setState(() => _downloading = false);
+        return;
+      }
+
+      // Capture screenshot
+      final imageBytes = await _screenshotController.capture(pixelRatio: 3.0);
+      if (imageBytes == null) throw Exception('Failed to capture ticket');
+
+      // Save to downloads
+      final dir = await getExternalStorageDirectory();
+      final downloadsPath = dir?.path.replaceAll('Android/data/com.addiscinema.app/files', 'Download') 
+          ?? (await getApplicationDocumentsDirectory()).path;
+      
+      final fileName = 'AddisCinema_Ticket_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('$downloadsPath/$fileName');
+      await file.writeAsBytes(imageBytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Ticket saved to Downloads/$fileName')),
+            ]),
+            backgroundColor: const Color(0xFF1C1C1E),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save ticket: $e'),
+            backgroundColor: Colors.red.shade900,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  Future<int> _getAndroidSdkInt() async {
+    try {
+      return int.parse(Platform.operatingSystemVersion.split('SDK ').last.split(')').first);
+    } catch (_) {
+      return 30;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,9 +179,19 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: GestureDetector(
-          onTap: () => Navigator.pushAndRemoveUntil(context,
-              MaterialPageRoute(builder: (_) => const MainShell()), (_) => false),
-          child: const Icon(Icons.arrow_back, color: Colors.white),
+          onTap: () => Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const MainShell()),
+            (_) => false,
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1C1C1E),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+          ),
         ),
         title: const Text('Booking Confirmation',
             style: TextStyle(
@@ -116,8 +215,11 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                 // Check icon + title
                 _buildHeader(),
                 const SizedBox(height: 20),
-                // Main ticket card
-                _buildTicketCard(),
+                // Main ticket card wrapped for screenshot
+                Screenshot(
+                  controller: _screenshotController,
+                  child: _buildTicketCard(),
+                ),
                 const SizedBox(height: 16),
                 // Download button
                 _buildDownloadBtn(),
@@ -152,6 +254,29 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                     ),
                   ),
                 ]),
+                const SizedBox(height: 24),
+                // Go Home button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MainShell()),
+                      (_) => false,
+                    ),
+                    icon: const Icon(Icons.home_rounded, size: 20),
+                    label: const Text('Back to Home',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE5383B),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      elevation: 8,
+                      shadowColor: const Color(0xFFE5383B).withOpacity(0.4),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -371,10 +496,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
         borderRadius: BorderRadius.circular(30),
       ),
       child: ElevatedButton.icon(
-        onPressed: () {},
-        icon: const Icon(Icons.download_outlined, size: 18),
-        label: const Text('Download Ticket',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        onPressed: _downloading ? null : _downloadTicket,
+        icon: _downloading
+            ? const SizedBox(width: 18, height: 18,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Icon(Icons.download_outlined, size: 18),
+        label: Text(
+          _downloading ? 'Saving...' : 'Download Ticket',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
