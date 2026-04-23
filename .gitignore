@@ -1,4 +1,7 @@
-# Miscellaneous
+# Node backend
+backend/node_modules/
+backend/uploads/
+backend/.env
 *.class
 *.log
 *.pyc
