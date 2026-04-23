@@ -18,6 +18,13 @@ dependencies:
   screenshot: ^3.0.0
   path_provider: ^2.1.5
   permission_handler: ^11.3.1
+  http: ^1.2.0
+  shared_preferences: ^2.2.2
+  image_picker: ^1.0.7
+  provider: ^6.1.2
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

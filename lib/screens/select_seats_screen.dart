@@ -20,7 +20,7 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
   final double _pricePerSeat = 150.0;
 
   // rows x cols = 8x9 = 72 seats; pre-taken seats
-  final Set<int> _takenSeats = {5, 6, 14, 15, 23, 24, 31, 32, 40, 41, 49, 50};
+  final Set<int> _takenSeats = {5, 6, 14, 15, 23, 24, 31, 32, 40, 41, 49,29,28,1,10, 50};
 
   @override
   Widget build(BuildContext context) {
