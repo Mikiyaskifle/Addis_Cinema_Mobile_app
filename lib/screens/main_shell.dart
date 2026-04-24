@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_settings.dart';
 import 'movies_screen.dart';
 import 'favorites_screen.dart';
 import 'tickets_screen.dart';
@@ -24,20 +26,16 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   ];
 
   final List<_NavItem> _navItems = const [
-    _NavItem(icon: Icons.movie_filter_rounded, activeIcon: Icons.movie_filter, label: 'Movies'),
-    _NavItem(icon: Icons.bookmark_border_rounded, activeIcon: Icons.bookmark_rounded, label: 'Favorites'),
-    _NavItem(icon: Icons.confirmation_number_outlined, activeIcon: Icons.confirmation_number, label: 'Tickets'),
-    _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Profile'),
+    _NavItem(icon: Icons.movie_filter_rounded, activeIcon: Icons.movie_filter, labelKey: 'Movies'),
+    _NavItem(icon: Icons.bookmark_border_rounded, activeIcon: Icons.bookmark_rounded, labelKey: 'Favorites'),
+    _NavItem(icon: Icons.confirmation_number_outlined, activeIcon: Icons.confirmation_number, labelKey: 'Tickets'),
+    _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, labelKey: 'Profile'),
   ];
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ));
   }
 
   @override
@@ -54,37 +52,50 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<AppSettings>();
+    final isDark = s.isDark;
+    final bg = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFF5F5F5);
+    final navBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final navBorder = isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.08);
+
+    // Update status bar icons based on theme
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+    ));
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: bg,
       extendBody: true,
       body: IndexedStack(index: _navIndex, children: _screens),
-      bottomNavigationBar: _buildNavBar(),
+      bottomNavigationBar: _buildNavBar(s, navBg, navBorder, isDark),
     );
   }
 
-  Widget _buildNavBar() {
+  Widget _buildNavBar(AppSettings s, Color navBg, Color navBorder, bool isDark) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
       height: 70,
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: navBg,
         borderRadius: BorderRadius.circular(35),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8)),
+          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.4 : 0.12), blurRadius: 20, offset: const Offset(0, 8)),
           BoxShadow(color: const Color(0xFFE5383B).withOpacity(0.05), blurRadius: 30, spreadRadius: 2),
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.06), width: 1),
+        border: Border.all(color: navBorder, width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(_navItems.length, (i) => _buildNavButton(i)),
+        children: List.generate(_navItems.length, (i) => _buildNavButton(i, s, isDark)),
       ),
     );
   }
 
-  Widget _buildNavButton(int index) {
+  Widget _buildNavButton(int index, AppSettings s, bool isDark) {
     final item = _navItems[index];
     final isActive = _navIndex == index;
+    final inactiveColor = isDark ? Colors.white38 : Colors.black38;
 
     return GestureDetector(
       onTap: () => _onNavTap(index),
@@ -93,8 +104,8 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         padding: isActive
-          ? const EdgeInsets.symmetric(horizontal: 18, vertical: 10)
-          : const EdgeInsets.all(12),
+            ? const EdgeInsets.symmetric(horizontal: 18, vertical: 10)
+            : const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFFE5383B) : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
@@ -107,13 +118,13 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
               child: Icon(
                 isActive ? item.activeIcon : item.icon,
                 key: ValueKey(isActive),
-                color: isActive ? Colors.white : Colors.white38,
+                color: isActive ? Colors.white : inactiveColor,
                 size: 22,
               ),
             ),
             if (isActive) ...[
               const SizedBox(width: 6),
-              Text(item.label,
+              Text(s.t(item.labelKey),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -131,6 +142,6 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 class _NavItem {
   final IconData icon;
   final IconData activeIcon;
-  final String label;
-  const _NavItem({required this.icon, required this.activeIcon, required this.label});
+  final String labelKey;
+  const _NavItem({required this.icon, required this.activeIcon, required this.labelKey});
 }

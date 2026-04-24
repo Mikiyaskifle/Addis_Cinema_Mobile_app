@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_settings.dart';
 import '../models/movie.dart';
 import '../models/concession_item.dart';
 import 'booking_confirmation_screen.dart';

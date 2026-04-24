@@ -65,6 +65,20 @@ router.post('/bookings', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/profile/bookings/:id — delete a booking
+router.delete('/bookings/:id', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    user.bookingHistory = user.bookingHistory.filter(
+      b => b._id.toString() !== req.params.id
+    );
+    await user.save();
+    res.json({ message: 'Booking deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // GET /api/profile/payments — get payment methods
 router.get('/payments', auth, async (req, res) => {
   try {

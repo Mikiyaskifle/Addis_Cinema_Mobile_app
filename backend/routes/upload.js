@@ -32,7 +32,7 @@ router.post('/avatar', auth, upload.single('avatar'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-    const avatarUrl = `http://${req.headers.host}/uploads/${req.file.filename}`;
+    const avatarUrl = `http://${process.env.SERVER_IP || 'localhost'}:${process.env.PORT}/uploads/${req.file.filename}`;
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { avatar: avatarUrl },

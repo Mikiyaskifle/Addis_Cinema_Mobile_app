@@ -1,212 +1,271 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../models/ticket.dart';
+import '../services/api_service.dart';
+import 'login_screen.dart';
 
-// Sample booked tickets
-final List<Ticket> _sampleTickets = [
-  Ticket(
-    id: '1',
-    movieTitle: 'Spider-Man',
-    moviePosterUrl: 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg',
-    date: 'June 5, 2023',
-    time: '12:30',
-    screenType: 'Extreme 3D',
-    seats: ['C4', 'C5'],
-    totalPrice: 9.00,
-  ),
-  Ticket(
-    id: '2',
-    movieTitle: 'Guardians of the Galaxy',
-    moviePosterUrl: 'https://image.tmdb.org/t/p/w500/r2J02Z2OpNTctfOSN1Ydgii51I3.jpg',
-    date: 'June 10, 2023',
-    time: '18:30',
-    screenType: 'Realt 3D',
-    seats: ['F2', 'F3', 'F4'],
-    totalPrice: 13.50,
-  ),
-];
-
-class TicketsScreen extends StatelessWidget {
+class TicketsScreen extends StatefulWidget {
   const TicketsScreen({super.key});
+  @override
+  State<TicketsScreen> createState() => _TicketsScreenState();
+}
+
+class _TicketsScreenState extends State<TicketsScreen> {
+  List<dynamic> _bookings = [];
+  bool _loading = true;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookings();
+  }
+
+  Future<void> _loadBookings() async {
+    final token = await ApiService.getToken();
+    if (token == null) {
+      setState(() { _isLoggedIn = false; _loading = false; });
+      return;
+    }
+    setState(() => _isLoggedIn = true);
+    try {
+      final bookings = await ApiService.getBookings();
+      setState(() { _bookings = bookings; _loading = false; });
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _deleteBooking(int index) async {
+    final booking = _bookings[index];
+    final id = booking['_id']?.toString();
+
+    // Confirm dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Ticket', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Delete your ticket for "${booking['movieTitle']}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade800,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _bookings.removeAt(index));
+    if (id != null) {
+      try { await ApiService.deleteBooking(id); } catch (_) {}
+    }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ticket deleted'),
+        backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('My Tickets', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+        backgroundColor: Colors.transparent, elevation: 0,
+        title: const Text('My Tickets',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
         centerTitle: true,
-      ),
-      body: _sampleTickets.isEmpty
-          ? _buildEmpty()
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _sampleTickets.length,
-              itemBuilder: (_, i) => _TicketCard(ticket: _sampleTickets[i]),
+        actions: [
+          if (_isLoggedIn)
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white54, size: 20),
+              onPressed: () { setState(() => _loading = true); _loadBookings(); },
             ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE5383B)))
+          : !_isLoggedIn
+              ? _buildLoginPrompt()
+              : _bookings.isEmpty
+                  ? _buildEmpty()
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _bookings.length,
+                      itemBuilder: (_, i) => _TicketCard(
+                        booking: _bookings[i],
+                        onDelete: () => _deleteBooking(i),
+                      ),
+                    ),
+    );
+  }
+
+  Widget _buildLoginPrompt() {
+    return Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.lock_outline, color: Colors.white24, size: 64),
+        const SizedBox(height: 16),
+        const Text('Sign in to view your tickets',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text('Your bookings will appear here after login',
+            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()))
+              .then((_) => _loadBookings()),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFE5383B),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+          child: const Text('Sign In', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+      ]),
     );
   }
 
   Widget _buildEmpty() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.confirmation_number_outlined, color: Colors.white24, size: 72),
-          const SizedBox(height: 16),
-          const Text('No tickets yet', style: TextStyle(color: Colors.white38, fontSize: 16)),
-          const SizedBox(height: 8),
-          const Text('Book a movie to see your tickets here', style: TextStyle(color: Colors.white24, fontSize: 13)),
-        ],
-      ),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.confirmation_number_outlined, color: Colors.white24, size: 72),
+        const SizedBox(height: 16),
+        const Text('No tickets yet', style: TextStyle(color: Colors.white38, fontSize: 16)),
+        const SizedBox(height: 8),
+        Text('Book a movie to see your tickets here',
+            style: TextStyle(color: Colors.white24, fontSize: 13)),
+      ]),
     );
   }
 }
 
 class _TicketCard extends StatelessWidget {
-  final Ticket ticket;
-  const _TicketCard({required this.ticket});
+  final Map<String, dynamic> booking;
+  final VoidCallback onDelete;
+  const _TicketCard({required this.booking, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
+    final seats = (booking['seats'] as List?)?.join(', ') ?? '';
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Column(
-        children: [
-          // Top: poster + info
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: ticket.moviePosterUrl,
-                    width: 70,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Container(
-                      width: 70,
-                      height: 100,
-                      color: const Color(0xFF2A2A2A),
-                      child: const Icon(Icons.movie, color: Colors.white30),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(ticket.movieTitle,
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      _infoRow(Icons.calendar_today_outlined, ticket.date),
-                      const SizedBox(height: 4),
-                      _infoRow(Icons.access_time, ticket.time),
-                      const SizedBox(height: 4),
-                      _infoRow(Icons.movie_filter_outlined, ticket.screenType),
-                      const SizedBox(height: 4),
-                      _infoRow(Icons.chair_alt_rounded, ticket.seats.join(', ')),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      child: Column(children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          // Dashed divider
-          _DashedDivider(),
-          // Bottom: price + QR placeholder
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total', style: TextStyle(color: Colors.white38, fontSize: 12)),
-                    Text('€ ${ticket.totalPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.qr_code_2, color: Colors.black, size: 40),
-                ),
-              ],
+          child: Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: booking['moviePoster'] != null
+                  ? Image.network(booking['moviePoster'], width: 50, height: 70, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _placeholder())
+                  : _placeholder(),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(booking['movieTitle'] ?? '',
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5383B).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(booking['screenType'] ?? '',
+                    style: const TextStyle(color: Color(0xFFE5383B), fontSize: 11, fontWeight: FontWeight.w600)),
+              ),
+            ])),
+            // Delete button
+            GestureDetector(
+              onTap: onDelete,
+              child: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade900.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.red.shade800.withOpacity(0.4)),
+                ),
+                child: Icon(Icons.delete_outline, color: Colors.red.shade400, size: 18),
+              ),
+            ),
+          ]),
+        ),
+        // Details
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(children: [
+            _row(Icons.calendar_today_outlined, 'Date', booking['date'] ?? ''),
+            const SizedBox(height: 10),
+            _row(Icons.access_time, 'Time', booking['time'] ?? ''),
+            const SizedBox(height: 10),
+            _row(Icons.chair_alt_rounded, 'Seats', seats),
+            const SizedBox(height: 10),
+            _row(Icons.confirmation_number_outlined, 'Booking ID', booking['bookingId'] ?? ''),
+          ]),
+        ),
+        _dashedDivider(),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text('Total', style: TextStyle(color: Colors.white38, fontSize: 13)),
+            Text('ETB ${(booking['totalPrice'] ?? 0).toStringAsFixed(0)}',
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ]),
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
+  Widget _placeholder() => Container(width: 50, height: 70, color: const Color(0xFF3A3A3A),
+      child: const Icon(Icons.movie, color: Colors.white30, size: 24));
+
+  Widget _row(IconData icon, String label, String value) {
     return Row(children: [
-      Icon(icon, color: Colors.white38, size: 13),
-      const SizedBox(width: 6),
-      Text(text, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+      Icon(icon, color: const Color(0xFFE5383B), size: 16),
+      const SizedBox(width: 10),
+      Text(label, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+      const Spacer(),
+      Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
     ]);
   }
-}
 
-class _DashedDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // Left notch
-        Container(
-          width: 20,
-          height: 20,
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D0D0D),
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(10),
-              bottomRight: Radius.circular(10),
-            ),
-          ),
-        ),
-        Expanded(
-          child: LayoutBuilder(builder: (_, constraints) {
-            const dashWidth = 6.0;
-            const dashSpace = 4.0;
-            final count = (constraints.maxWidth / (dashWidth + dashSpace)).floor();
-            return Row(
-              children: List.generate(count, (_) => Container(
-                width: dashWidth,
-                height: 1,
-                margin: const EdgeInsets.only(right: dashSpace),
-                color: Colors.white12,
-              )),
-            );
-          }),
-        ),
-        // Right notch
-        Container(
-          width: 20,
-          height: 20,
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D0D0D),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(10),
-              bottomLeft: Radius.circular(10),
-            ),
-          ),
-        ),
-      ],
-    );
+  Widget _dashedDivider() {
+    return Row(children: [
+      Container(width: 20, height: 20,
+          decoration: const BoxDecoration(color: Color(0xFF0D0D0D),
+              borderRadius: BorderRadius.only(topRight: Radius.circular(10), bottomRight: Radius.circular(10)))),
+      Expanded(child: LayoutBuilder(builder: (_, c) {
+        const dw = 5.0, ds = 4.0;
+        final count = (c.maxWidth / (dw + ds)).floor();
+        return Row(children: List.generate(count, (_) =>
+            Container(width: dw, height: 1, margin: const EdgeInsets.only(right: ds), color: Colors.white12)));
+      })),
+      Container(width: 20, height: 20,
+          decoration: const BoxDecoration(color: Color(0xFF0D0D0D),
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)))),
+    ]);
   }
 }

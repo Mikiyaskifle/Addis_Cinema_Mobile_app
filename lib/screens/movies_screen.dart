@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_settings.dart';
 import '../data/movies_data.dart';
 import '../models/movie.dart';
 import 'movie_detail_screen.dart';
@@ -45,6 +47,8 @@ class _MoviesScreenState extends State<MoviesScreen> {
   Widget build(BuildContext context) {
     final movie = _movies.isNotEmpty ? _movies[_currentMovieIndex] : _allMovies[0];
     final bgColor = Color(movie.bgColor);
+    final s = context.watch<AppSettings>();
+    final isDark = s.isDark;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       decoration: BoxDecoration(
@@ -82,7 +86,7 @@ class _MoviesScreenState extends State<MoviesScreen> {
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(30),
       ),
-      child: Row(children: [_tabButton('Now Showing', 0), _tabButton('Coming Soon', 1)]),
+      child: Row(children: [_tabButton(context.read<AppSettings>().t('Now Showing'), 0), _tabButton(context.read<AppSettings>().t('Coming Soon'), 1)]),
     );
   }
 
@@ -117,8 +121,7 @@ class _MoviesScreenState extends State<MoviesScreen> {
 
   Widget _buildDateHeader() {
     return Column(children: [
-      Text('Today', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
-      const Text('Jun 5th, 2023', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+      Text('Today', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),      const Text('Jun 5th, 2023', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
       const SizedBox(height: 4),
       Container(width: 30, height: 2, color: Colors.white.withOpacity(0.4)),
     ]);

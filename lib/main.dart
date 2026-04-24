@@ -8,6 +8,7 @@ import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppSettings.instance.load();
+  await FavoritesStore.instance.load(); // load saved favorites
   runApp(const AddisCinemaApp());
 }
 

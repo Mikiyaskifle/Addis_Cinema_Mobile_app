@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../data/favorites_store.dart';
 import '../data/movies_data.dart';
@@ -97,6 +98,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _logout() async {
     await ApiService.clearToken();
+    await FavoritesStore.instance.clear(); // clear favorites on logout
     if (mounted) Navigator.pushAndRemoveUntil(context,
       MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
@@ -388,23 +390,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickAndUploadAvatar() async {
+    // Request permission first
+    final status = await Permission.photos.request();
+    if (!status.isGranted) {
+      final storage = await Permission.storage.request();
+      if (!storage.isGranted) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gallery permission denied'),
+            backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+        return;
+      }
+    }
+
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+      maxWidth: 800,
+    );
     if (picked == null) return;
+
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Uploading...'),
+        backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 10)));
+
     try {
       final res = await ApiService.uploadAvatar(picked.path);
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
       if (res['user'] != null) {
         setState(() => _user = res['user']);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user', jsonEncode(res['user']));
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated'),
+          const SnackBar(content: Text('✅ Profile photo updated!'),
             backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: ${res['message'] ?? 'Unknown error'}'),
+            backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e'),
-          backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: $e'),
+            backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
+      }
     }
   }
 

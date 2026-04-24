@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +20,7 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('user');
+    await prefs.remove('current_user_id');
   }
 
   static Future<Map<String, String>> _headers() async {
@@ -31,13 +33,25 @@ class ApiService {
 
   static Future<Map<String, dynamic>> uploadAvatar(String filePath) async {
     final token = await getToken();
-    final request = http.MultipartRequest(
-      'POST', Uri.parse('$baseUrl/upload/avatar'));
-    request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(await http.MultipartFile.fromPath('avatar', filePath));
-    final response = await request.send();
-    final body = await response.stream.bytesToString();
-    return jsonDecode(body);
+    if (token == null) return {'message': 'Not logged in'};
+
+    try {
+      final request = http.MultipartRequest(
+        'POST', Uri.parse('$baseUrl/upload/avatar'));
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath('avatar', filePath));
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final body = await streamedResponse.stream.bytesToString();
+
+      if (streamedResponse.statusCode == 200 || streamedResponse.statusCode == 201) {
+        return jsonDecode(body);
+      } else {
+        return {'message': 'Server error ${streamedResponse.statusCode}: $body'};
+      }
+    } catch (e) {
+      return {'message': 'Connection error: $e'};
+    }
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -116,6 +130,13 @@ class ApiService {
       body: jsonEncode(booking),
     );
     return jsonDecode(res.body);
+  }
+
+  static Future<void> deleteBooking(String id) async {
+    await http.delete(
+      Uri.parse('$baseUrl/profile/bookings/$id'),
+      headers: await _headers(),
+    );
   }
 
   // ── Payments ──────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:screenshot/screenshot.dart';
 import '../models/movie.dart';
 import '../models/concession_item.dart';
+import '../services/api_service.dart';
 import 'main_shell.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
@@ -43,6 +44,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
   late Animation<Offset> _slideAnim;
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _downloading = false;
+  late final String _bookingId;
 
   List<String> get _seatLabels {
     const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -50,9 +52,6 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
         .map((i) => '${rows[i ~/ 9]}${(i % 9) + 1}')
         .toList();
   }
-
-  final String _bookingId =
-      'CN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5, 9)}-01';
 
   String get _qrData =>
       'AddisCinema|${widget.movie.title}|${widget.date}|${widget.time}|${_seatLabels.join(",")}|ETB${widget.totalPrice.toStringAsFixed(0)}';
@@ -67,12 +66,31 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
             begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _controller.forward();
+    _bookingId = 'CN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5, 9)}-01';
+    _saveBookingToDatabase(); // save to DB on confirmation
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveBookingToDatabase() async {
+    try {
+      final token = await ApiService.getToken();
+      if (token == null) return; // not logged in, skip
+      await ApiService.addBooking({
+        'movieTitle': widget.movie.title.replaceAll('\n', ' '),
+        'moviePoster': widget.movie.posterUrl,
+        'date': widget.date,
+        'time': widget.time,
+        'screenType': widget.screenType,
+        'seats': _seatLabels,
+        'totalPrice': widget.totalPrice,
+        'bookingId': _bookingId,
+      });
+    } catch (_) {} // silent fail — don't block UI
   }
 
   Future<void> _shareTicket() async {

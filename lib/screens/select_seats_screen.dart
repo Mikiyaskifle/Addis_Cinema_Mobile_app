@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_settings.dart';
 import '../models/movie.dart';
 import 'concession_screen.dart';
 
@@ -38,7 +40,8 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           ),
         ),
-        title: const Text('Select Seats', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(context.watch<AppSettings>().t('Select Seats'),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           Container(
@@ -70,7 +73,8 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
       child: Column(children: [
-        Text('Screen', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+        Text(context.watch<AppSettings>().t('Screen'),
+            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
         const SizedBox(height: 6),
         Container(
           height: 6,
@@ -197,11 +201,11 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _legendDot(const Color(0xFF2A2A2A), 'Available'),
+          _legendDot(const Color(0xFF2A2A2A), context.watch<AppSettings>().t('Available')),
           const SizedBox(width: 20),
-          _legendDot(const Color(0xFF3A3A3A), 'Taken'),
+          _legendDot(const Color(0xFF3A3A3A), context.watch<AppSettings>().t('Taken')),
           const SizedBox(width: 20),
-          _legendDot(const Color(0xFFE5383B), 'Selected'),
+          _legendDot(const Color(0xFFE5383B), context.watch<AppSettings>().t('Selected')),
         ],
       ),
     );
@@ -241,7 +245,8 @@ class _SelectSeatsScreenState extends State<SelectSeatsScreen> {
           children: [
             const Icon(Icons.credit_card, color: Colors.white, size: 18),
             const SizedBox(width: 8),
-            const Text('Buy Tickets', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(context.watch<AppSettings>().t('Buy Tickets'),
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             if (_selectedSeats.isNotEmpty) ...[
               const SizedBox(width: 12),
               Container(width: 1, height: 20, color: Colors.white38),

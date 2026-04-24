@@ -4,7 +4,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../data/movies_data.dart';
 import '../data/favorites_store.dart';
+import '../services/api_service.dart';
 import 'select_seats_screen.dart';
+import 'login_screen.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final Movie movie;
@@ -305,8 +307,50 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     ),
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => SelectSeatsScreen(movie: m))),
+                    onPressed: () async {
+                      final token = await ApiService.getToken();
+                      if (token == null) {
+                        // Not logged in — show dialog
+                        if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            backgroundColor: const Color(0xFF1A1A1A),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            title: const Row(children: [
+                              Icon(Icons.lock_outline, color: Color(0xFFE5383B), size: 22),
+                              SizedBox(width: 8),
+                              Text('Sign In Required', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                            ]),
+                            content: const Text(
+                              'You need to sign in to book tickets.',
+                              style: TextStyle(color: Colors.white70, fontSize: 14),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const LoginScreen()));
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE5383B),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                ),
+                                child: const Text('Sign In', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => SelectSeatsScreen(movie: m)));
+                      }
+                    },
                     icon: const Icon(Icons.credit_card, size: 18),
                     label: const Text('Buy Tickets', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(

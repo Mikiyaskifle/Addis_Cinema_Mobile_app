@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../data/favorites_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'main_shell.dart';
@@ -41,6 +42,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await ApiService.saveToken(res['token']);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user', jsonEncode(res['user']));
+        final userId = res['user']['id'] ?? res['user']['_id'];
+        await prefs.setString('current_user_id', userId.toString());
+        await FavoritesStore.instance.loadForUser(userId.toString());
         if (mounted) Navigator.pushAndRemoveUntil(context,
           MaterialPageRoute(builder: (_) => const MainShell()), (_) => false);
       } else {

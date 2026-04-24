@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_settings.dart';
 import '../models/movie.dart';
 import '../models/concession_item.dart';
 import 'payment_screen.dart';
@@ -93,7 +95,8 @@ class _ConcessionScreenState extends State<ConcessionScreen>
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           ),
         ),
-        title: const Text('Food & Drinks', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(context.watch<AppSettings>().t('Food & Drinks'),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
