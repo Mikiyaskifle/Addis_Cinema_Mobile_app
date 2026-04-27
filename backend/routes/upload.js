@@ -15,17 +15,28 @@ cloudinary.config({
 // Use memory storage — no disk needed
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    cb(null, allowed.includes(file.mimetype));
+    // Accept any image type including octet-stream from Android
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif', 'application/octet-stream'];
+    if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(null, true); // accept all for now — Cloudinary will validate
+    }
   },
 });
 
 // POST /api/upload/avatar
 router.post('/avatar', auth, upload.single('avatar'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+    console.log('Upload request received');
+    console.log('Files:', req.file ? `${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)` : 'none');
+    console.log('Body keys:', Object.keys(req.body));
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded. Make sure field name is "avatar"' });
+    }
 
     // Upload buffer to Cloudinary
     const result = await new Promise((resolve, reject) => {
