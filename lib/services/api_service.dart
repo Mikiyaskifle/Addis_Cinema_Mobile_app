@@ -66,7 +66,7 @@ class ApiService {
       Uri.parse('$baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'name': name, 'email': email, 'phone': phone, 'password': password}),
-    );
+    ).timeout(const Duration(seconds: 15));
     return jsonDecode(res.body);
   }
 
@@ -78,7 +78,7 @@ class ApiService {
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
-    );
+    ).timeout(const Duration(seconds: 15));
     return jsonDecode(res.body);
   }
 

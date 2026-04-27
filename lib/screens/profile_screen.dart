@@ -1,4 +1,5 @@
-﻿import 'dart:convert';
+﻿import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -37,21 +38,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userStr = prefs.getString('user');
+
+    // Show cached data immediately — no waiting
     if (userStr != null) {
-      setState(() => _user = jsonDecode(userStr));
+      setState(() {
+        _user = jsonDecode(userStr);
+        _loadingProfile = false; // show UI right away
+      });
+    } else {
+      setState(() => _loadingProfile = false);
     }
-    // Try to fetch fresh from API
+
+    // Try to refresh from API in background (non-blocking)
+    _refreshFromApi();
+  }
+
+  Future<void> _refreshFromApi() async {
     try {
-      final profile = await ApiService.getProfile();
-      if (profile['_id'] != null) {
+      final token = await ApiService.getToken();
+      if (token == null) return;
+
+      final profile = await ApiService.getProfile()
+          .timeout(const Duration(seconds: 8));
+      if (profile['_id'] != null && mounted) {
         setState(() => _user = profile);
+        final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user', jsonEncode(profile));
       }
-      final bookings = await ApiService.getBookings();
-      final payments = await ApiService.getPaymentMethods();
-      setState(() { _bookings = bookings; _payments = payments; });
-    } catch (_) {}
-    setState(() => _loadingProfile = false);
+
+      final bookings = await ApiService.getBookings()
+          .timeout(const Duration(seconds: 8));
+      final payments = await ApiService.getPaymentMethods()
+          .timeout(const Duration(seconds: 8));
+      if (mounted) setState(() { _bookings = bookings; _payments = payments; });
+    } catch (_) {
+      // Silent fail — cached data already shown
+    }
   }
 
   void _onAboutTap() {

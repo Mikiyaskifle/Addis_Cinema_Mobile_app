@@ -29,9 +29,15 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const t1 = Date.now();
     const user = await User.findOne({ email });
-    if (!user || !(await user.comparePassword(password)))
-      return res.status(401).json({ message: 'Invalid email or password' });
+    console.log(`DB lookup: ${Date.now() - t1}ms`);
+    if (!user) return res.status(401).json({ message: 'Invalid email or password' });
+
+    const t2 = Date.now();
+    const match = await user.comparePassword(password);
+    console.log(`bcrypt compare: ${Date.now() - t2}ms`);
+    if (!match) return res.status(401).json({ message: 'Invalid email or password' });
 
     const token = signToken(user._id);
     res.json({

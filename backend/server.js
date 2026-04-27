@@ -22,7 +22,11 @@ app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 app.get('/', (req, res) => res.json({ message: 'AddisCinema API running ✅' }));
 
 // Connect to MongoDB and start server
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+})
   .then(() => {
     console.log('✅ MongoDB connected');
     app.listen(process.env.PORT, () =>

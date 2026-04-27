@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 
@@ -12,6 +15,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
   List<dynamic> _bookings = [];
   bool _loading = true;
   bool _isLoggedIn = false;
+  String _userName = '';
 
   @override
   void initState() {
@@ -27,6 +31,13 @@ class _TicketsScreenState extends State<TicketsScreen> {
     }
     setState(() => _isLoggedIn = true);
     try {
+      // Load user name
+      final prefs = await SharedPreferences.getInstance();
+      final userStr = prefs.getString('user');
+      if (userStr != null) {
+        final user = jsonDecode(userStr);
+        setState(() => _userName = user['name'] ?? '');
+      }
       final bookings = await ApiService.getBookings();
       setState(() { _bookings = bookings; _loading = false; });
     } catch (_) {
@@ -100,14 +111,40 @@ class _TicketsScreenState extends State<TicketsScreen> {
               ? _buildLoginPrompt()
               : _bookings.isEmpty
                   ? _buildEmpty()
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _bookings.length,
-                      itemBuilder: (_, i) => _TicketCard(
-                        booking: _bookings[i],
-                        onDelete: () => _deleteBooking(i),
+                  : Column(
+                  children: [
+                    // User greeting
+                    if (_userName.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A1A),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.person_outline, color: Color(0xFFE5383B), size: 20),
+                          const SizedBox(width: 10),
+                          Text('Welcome, $_userName',
+                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          Text('${_bookings.length} ticket${_bookings.length != 1 ? 's' : ''}',
+                            style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                        ]),
+                      ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _bookings.length,
+                        itemBuilder: (_, i) => _TicketCard(
+                          booking: _bookings[i],
+                          userName: _userName,
+                          onDelete: () => _deleteBooking(i),
+                        ),
                       ),
                     ),
+                  ],
+                ),
     );
   }
 
@@ -153,8 +190,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
 
 class _TicketCard extends StatelessWidget {
   final Map<String, dynamic> booking;
+  final String userName;
   final VoidCallback onDelete;
-  const _TicketCard({required this.booking, required this.onDelete});
+  const _TicketCard({required this.booking, required this.userName, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -229,10 +267,36 @@ class _TicketCard extends StatelessWidget {
         _dashedDivider(),
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Total', style: TextStyle(color: Colors.white38, fontSize: 13)),
-            Text('ETB ${(booking['totalPrice'] ?? 0).toStringAsFixed(0)}',
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          child: Row(children: [
+            // User info + total
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Ticket Holder', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                const SizedBox(height: 4),
+                Text(userName.isNotEmpty ? userName : 'Guest',
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                const Text('Total', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                const SizedBox(height: 4),
+                Text('ETB ${(booking['totalPrice'] ?? 0).toStringAsFixed(0)}',
+                  style: const TextStyle(color: Color(0xFFE5383B), fontSize: 20, fontWeight: FontWeight.bold)),
+              ]),
+            ),
+            // QR Code
+            Column(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: QrImageView(
+                  data: 'AddisCinema|${booking['movieTitle'] ?? ''}|${booking['date'] ?? ''}|${booking['time'] ?? ''}|${(booking['seats'] as List?)?.join(",") ?? ''}|${booking['bookingId'] ?? ''}',
+                  version: QrVersions.auto,
+                  size: 90,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text('Scan at entry', style: TextStyle(color: Colors.white38, fontSize: 10)),
+            ]),
           ]),
         ),
       ]),

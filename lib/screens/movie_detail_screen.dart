@@ -310,7 +310,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     onPressed: () async {
                       final token = await ApiService.getToken();
                       if (token == null) {
-                        // Not logged in — show dialog
                         if (!context.mounted) return;
                         showDialog(
                           context: context,
@@ -332,10 +331,19 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
                               ),
                               ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => const LoginScreen()));
+                                onPressed: () async {
+                                  Navigator.pop(context); // close dialog
+                                  // Push login and wait for it to pop back
+                                  await Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const LoginScreen(returnToPrevious: true)));
+                                  // After login returns, check if now logged in
+                                  if (!context.mounted) return;
+                                  final newToken = await ApiService.getToken();
+                                  if (newToken != null) {
+                                    // Logged in — go to seat selection
+                                    Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) => SelectSeatsScreen(movie: m)));
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFE5383B),

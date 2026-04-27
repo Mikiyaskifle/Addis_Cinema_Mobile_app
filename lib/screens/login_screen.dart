@@ -7,7 +7,8 @@ import 'main_shell.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final bool returnToPrevious;
+  const LoginScreen({super.key, this.returnToPrevious = false});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -40,13 +41,20 @@ class _LoginScreenState extends State<LoginScreen> {
         final userId = res['user']['id'] ?? res['user']['_id'];
         await prefs.setString('current_user_id', userId.toString());
         await FavoritesStore.instance.loadForUser(userId.toString());
-        if (mounted) Navigator.pushAndRemoveUntil(context,
-          MaterialPageRoute(builder: (_) => const MainShell()), (_) => false);
+        if (mounted) {
+          if (widget.returnToPrevious) {
+            // Go back to where the user came from (movie detail)
+            Navigator.pop(context);
+          } else {
+            Navigator.pushAndRemoveUntil(context,
+              MaterialPageRoute(builder: (_) => const MainShell()), (_) => false);
+          }
+        }
       } else {
         setState(() => _error = res['message'] ?? 'Login failed');
       }
     } catch (e) {
-      setState(() => _error = 'Cannot connect to server. Check your connection.');
+      setState(() => _error = 'Cannot reach server. Make sure backend is running and you are on the same WiFi.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
