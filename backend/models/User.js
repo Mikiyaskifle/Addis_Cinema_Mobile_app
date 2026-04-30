@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, default: '' },
   password: { type: String, required: true, minlength: 6 },
   avatar: { type: String, default: '' },
+  favorites: [{ type: String }], // Array of movie IDs
   bookingHistory: [{
     movieTitle: String,
     moviePoster: String,

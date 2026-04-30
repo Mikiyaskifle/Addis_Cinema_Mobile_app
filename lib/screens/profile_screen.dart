@@ -1,6 +1,5 @@
 ﻿import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,8 +8,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../data/favorites_store.dart';
 import '../data/movies_data.dart';
-import '../models/movie.dart';
 import '../services/api_service.dart';
+import '../services/tmdb_service.dart';
 import '../providers/app_settings.dart';
 import 'movie_detail_screen.dart';
 import 'login_screen.dart';
@@ -107,91 +106,211 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     await ApiService.clearToken();
     await FavoritesStore.instance.clear();
-    if (mounted) Navigator.pushAndRemoveUntil(context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+    
+    // Show logout success message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logged out successfully'),
+          backgroundColor: Color(0xFF1C1C1E),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      
+      // Navigate after a short delay so user can see the message
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      Navigator.pushAndRemoveUntil(context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+    }
   }
 
   void _showEditProfile() {
     final nameCtrl = TextEditingController(text: _user?['name'] ?? '');
     final phoneCtrl = TextEditingController(text: _user?['phone'] ?? '');
+    final currentPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    bool showPasswordSection = false;
+
     showModalBottomSheet(context: context, isScrollControlled: true,
       backgroundColor: const Color(0xFF161625),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
+      builder: (_) => StatefulBuilder(builder: (ctx, setS) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(width: 4, height: 20, decoration: BoxDecoration(color: const Color(0xFFE5383B), borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 10),
-            const Text('Edit Profile', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 20),
-          _sheetField('Full Name', nameCtrl, Icons.person_outline),
-          const SizedBox(height: 14),
-          _sheetField('Phone', phoneCtrl, Icons.phone_outlined),
-          const SizedBox(height: 20),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                final updated = await ApiService.updateProfile({'name': nameCtrl.text, 'phone': phoneCtrl.text});
-                setState(() => _user = updated);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('user', jsonEncode(updated));
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Header
+            Row(children: [
+              Container(width: 4, height: 20, decoration: BoxDecoration(color: const Color(0xFFE5383B), borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 10),
+              const Text('Edit Profile', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ]),
+            const SizedBox(height: 20),
+
+            // Profile photo
+            Center(
+              child: Stack(children: [
+                Container(
+                  width: 90, height: 90,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [Color(0xFFE5383B), Color(0xFF7B0000)]),
+                    boxShadow: [BoxShadow(color: const Color(0xFFE5383B).withOpacity(0.3), blurRadius: 12)],
+                  ),
+                  padding: const EdgeInsets.all(3),
+                  child: ClipOval(
+                    child: (_user?['avatar'] ?? '').isNotEmpty
+                        ? CachedNetworkImage(imageUrl: _user!['avatar'], fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(color: const Color(0xFF2A2A2A), child: const Icon(Icons.person, color: Colors.white38, size: 40)))
+                        : Container(color: const Color(0xFF2A2A2A), child: const Icon(Icons.person, color: Colors.white38, size: 40)),
+                  ),
+                ),
+                Positioned(bottom: 0, right: 0,
+                  child: GestureDetector(
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _pickAndUploadAvatar();
+                    },
+                    child: Container(width: 30, height: 30,
+                      decoration: BoxDecoration(color: const Color(0xFFE5383B), shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF161625), width: 2)),
+                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 14)))),
+              ]),
+            ),
+            Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              TextButton(
+                onPressed: () async { Navigator.pop(context); await _pickAndUploadAvatar(); },
+                child: const Text('Change Photo', style: TextStyle(color: Color(0xFFE5383B), fontSize: 13)),
+              ),
+              if ((_user?['avatar'] ?? '').isNotEmpty) ...[
+                Text('·', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    try {
+                      final res = await ApiService.removeAvatar();
+                      if (res['user'] != null) {
+                        setState(() => _user = res['user']);
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString('user', jsonEncode(res['user']));
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Profile photo removed'),
+                            backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
+                      } else {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed: ${res['message'] ?? 'Unknown error'}'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
+                      }
+                    } catch (e) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
+                    }
+                  },
+                  child: const Text('Remove Photo', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                ),
+              ],
+            ])),
+            const SizedBox(height: 8),
+
+            // Name & Phone
+            _sheetField('Full Name', nameCtrl, Icons.person_outline),
+            const SizedBox(height: 14),
+            _sheetField('Phone', phoneCtrl, Icons.phone_outlined),
+            const SizedBox(height: 20),
+
+            // Change Password toggle
+            GestureDetector(
+              onTap: () => setS(() => showPasswordSection = !showPasswordSection),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: showPasswordSection ? const Color(0xFFE5383B).withOpacity(0.1) : const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: showPasswordSection ? const Color(0xFFE5383B).withOpacity(0.4) : Colors.transparent),
+                ),
+                child: Row(children: [
+                  Icon(Icons.lock_outline, color: showPasswordSection ? const Color(0xFFE5383B) : Colors.white54, size: 18),
+                  const SizedBox(width: 10),
+                  Text('Change Password', style: TextStyle(color: showPasswordSection ? Colors.white : Colors.white70, fontSize: 14)),
+                  const Spacer(),
+                  Icon(showPasswordSection ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.white38, size: 18),
+                ]),
+              ),
+            ),
+
+            // Password fields (collapsible)
+            if (showPasswordSection) ...[
+              const SizedBox(height: 14),
+              _sheetField('Current Password', currentPassCtrl, Icons.lock_outline, obscure: true),
+              const SizedBox(height: 12),
+              _sheetField('New Password', newPassCtrl, Icons.lock_outline, obscure: true),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Save button
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Update name/phone
+                try {
+                  final updated = await ApiService.updateProfile({'name': nameCtrl.text, 'phone': phoneCtrl.text});
+                  setState(() => _user = updated);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('user', jsonEncode(updated));
+                } catch (_) {}
+                // Change password if filled
+                if (showPasswordSection && newPassCtrl.text.isNotEmpty) {
+                  try {
+                    await ApiService.changePassword(currentPassword: currentPassCtrl.text, newPassword: newPassCtrl.text);
+                  } catch (_) {}
+                }
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('✅ Profile updated'), backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
-              } catch (_) {}
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5383B),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-            child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          )),
-          const SizedBox(height: 20),
-        ]),
-      ),
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5383B),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+              child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            )),
+            const SizedBox(height: 12),
+
+            // Delete account button
+            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                showDialog(context: context, builder: (_) => AlertDialog(
+                  backgroundColor: const Color(0xFF1A1A1A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Text('Delete Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  content: const Text('This will permanently delete your account and all data. This cannot be undone.',
+                    style: TextStyle(color: Colors.white70)),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white38))),
+                    ElevatedButton(
+                      onPressed: () { Navigator.pop(context); _logout(); },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade800, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                      child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ));
+              },
+              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
+              label: const Text('Delete Account', style: TextStyle(color: Colors.red, fontSize: 13)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.red.withOpacity(0.3)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+            )),
+            const SizedBox(height: 24),
+          ]),
+        ),
+      )),
     );
   }
 
-  void _showChangePassword() {
-    final currentCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
-    showModalBottomSheet(context: context, isScrollControlled: true,
-      backgroundColor: const Color(0xFF161625),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(width: 4, height: 20, decoration: BoxDecoration(color: const Color(0xFFE5383B), borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 10),
-            const Text('Change Password', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 20),
-          _sheetField('Current Password', currentCtrl, Icons.lock_outline, obscure: true),
-          const SizedBox(height: 14),
-          _sheetField('New Password', newCtrl, Icons.lock_outline, obscure: true),
-          const SizedBox(height: 20),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                final res = await ApiService.changePassword(currentPassword: currentCtrl.text, newPassword: newCtrl.text);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(res['message'] ?? 'Password changed'),
-                    backgroundColor: const Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
-              } catch (_) {}
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5383B),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-            child: const Text('Update Password', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          )),
-          const SizedBox(height: 20),
-        ]),
-      ),
-    );
-  }
+
 
   Widget _sheetField(String label, TextEditingController ctrl, IconData icon, {bool obscure = false}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -434,8 +553,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Row(children: [
                         _quickAction(Icons.edit_outlined, 'Edit', _showEditProfile),
                         const SizedBox(width: 12),
-                        _quickAction(Icons.lock_outline, 'Password', _showChangePassword),
-                        const SizedBox(width: 12),
                         _quickAction(Icons.refresh, 'Refresh', () { _refreshFromApi(); }),
                       ]),
                     ),
@@ -455,13 +572,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           itemBuilder: (_, i) {
                             final m = savedMovies[i];
                             return GestureDetector(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: m))),
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MovieDetailScreen.fromTmdb(movie: TmdbMovie(id: int.tryParse(m.id) ?? 0, title: m.title, overview: m.description, posterPath: null, backdropPath: null, voteAverage: m.rating, releaseDate: '', genreIds: const [])))),
                               child: Stack(children: [
                                 ClipRRect(borderRadius: BorderRadius.circular(12),
                                   child: CachedNetworkImage(imageUrl: m.posterUrl, width: 100, height: 150, fit: BoxFit.cover,
                                     errorWidget: (_, __, ___) => Container(width: 100, height: 150, color: const Color(0xFF2A2A2A), child: const Icon(Icons.movie, color: Colors.white30)))),
                                 Positioned(top: 6, right: 6,
-                                  child: GestureDetector(onTap: () => FavoritesStore.instance.toggle(m.id),
+                                  child: GestureDetector(onTap: () async => await FavoritesStore.instance.toggle(m.id),
                                     child: Container(width: 26, height: 26,
                                       decoration: const BoxDecoration(color: Color(0xFFE5383B), shape: BoxShape.circle),
                                       child: const Icon(Icons.bookmark, color: Colors.white, size: 13)))),

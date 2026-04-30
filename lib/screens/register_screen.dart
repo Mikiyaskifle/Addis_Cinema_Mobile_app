@@ -43,8 +43,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user', jsonEncode(res['user']));
         final userId = res['user']['id'] ?? res['user']['_id'];
-        await prefs.setString('current_user_id', userId.toString());
-        await FavoritesStore.instance.loadForUser(userId.toString());
+        if (userId != null) {
+          await prefs.setString('current_user_id', userId.toString());
+          await FavoritesStore.instance.loadForUser(userId.toString());
+          // No need to syncToBackend() here - loadForUser() already handles merging
+          // and syncing local favorites to backend
+        } else {
+          print('Warning: userId is null in register response');
+          await FavoritesStore.instance.loadForUser(null);
+        }
         if (mounted) Navigator.pushAndRemoveUntil(context,
           MaterialPageRoute(builder: (_) => const MainShell()), (_) => false);
       } else {

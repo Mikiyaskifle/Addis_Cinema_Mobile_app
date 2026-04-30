@@ -116,4 +116,46 @@ router.delete('/payments/:id', auth, async (req, res) => {
   }
 });
 
+// GET /api/profile/favorites — get user favorites
+router.get('/favorites', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('favorites');
+    res.json(user.favorites);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/profile/favorites — add a favorite
+router.post('/favorites', auth, async (req, res) => {
+  try {
+    const { movieId } = req.body;
+    if (!movieId) {
+      return res.status(400).json({ message: 'Movie ID is required' });
+    }
+    
+    const user = await User.findById(req.user._id);
+    if (!user.favorites.includes(movieId)) {
+      user.favorites.push(movieId);
+      await user.save();
+    }
+    
+    res.json({ favorites: user.favorites });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/profile/favorites/:movieId — remove a favorite
+router.delete('/favorites/:movieId', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    user.favorites = user.favorites.filter(id => id !== req.params.movieId);
+    await user.save();
+    res.json({ favorites: user.favorites });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

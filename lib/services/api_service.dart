@@ -25,10 +25,27 @@ class ApiService {
 
   static Future<Map<String, String>> _headers() async {
     final token = await getToken();
+    print('API headers - token: $token');
     return {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
+  }
+
+  static Future<Map<String, dynamic>> removeAvatar() async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/upload/avatar'),
+        headers: await _headers(),
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return jsonDecode(res.body);
+      } else {
+        return {'message': 'Server error: ${res.statusCode}'};
+      }
+    } catch (e) {
+      return {'message': 'Network error: $e'};
+    }
   }
 
   static Future<Map<String, dynamic>> uploadAvatar(String filePath) async {
@@ -163,5 +180,96 @@ class ApiService {
       Uri.parse('$baseUrl/profile/payments/$id'),
       headers: await _headers(),
     );
+  }
+
+  // ── Favorites ────────────────────────────────────────────────────────────
+
+  static Future<List<String>> getFavorites() async {
+    try {
+      final headers = await _headers();
+      print('Getting favorites with headers: $headers');
+      final res = await http.get(
+        Uri.parse('$baseUrl/profile/favorites'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 10));
+      
+      print('Favorites response status: ${res.statusCode}');
+      print('Favorites response body: ${res.body}');
+      
+      if (res.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(res.body);
+        return data.map((item) => item.toString()).toList();
+      } else {
+        print('Failed to get favorites: ${res.statusCode} - ${res.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting favorites: $e');
+      return [];
+    }
+  }
+
+  static Future<List<String>> addFavorite(String movieId) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/profile/favorites'),
+        headers: await _headers(),
+        body: jsonEncode({'movieId': movieId}),
+      ).timeout(const Duration(seconds: 10));
+      
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final Map<String, dynamic> data = jsonDecode(res.body);
+        final List<dynamic> favorites = data['favorites'] ?? [];
+        return favorites.map((item) => item.toString()).toList();
+      } else {
+        print('Failed to add favorite: ${res.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error adding favorite: $e');
+      return [];
+    }
+  }
+
+  static Future<List<String>> removeFavorite(String movieId) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/profile/favorites/$movieId'),
+        headers: await _headers(),
+      ).timeout(const Duration(seconds: 10));
+      
+      if (res.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(res.body);
+        final List<dynamic> favorites = data['favorites'] ?? [];
+        return favorites.map((item) => item.toString()).toList();
+      } else {
+        print('Failed to remove favorite: ${res.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error removing favorite: $e');
+      return [];
+    }
+  }
+
+  static Future<void> syncFavorites(List<String> favorites) async {
+    try {
+      // First get current favorites from server
+      final serverFavorites = await getFavorites();
+      print('Syncing favorites: local=$favorites, server=$serverFavorites');
+      
+      // Only add local favorites that aren't on server
+      // Don't remove server favorites - server is source of truth
+      for (final movieId in favorites) {
+        if (!serverFavorites.contains(movieId)) {
+          print('Adding missing favorite to server: $movieId');
+          await addFavorite(movieId);
+        }
+      }
+      
+      print('Sync completed - only added missing favorites, did not remove any');
+    } catch (e) {
+      print('Error syncing favorites: $e');
+    }
   }
 }

@@ -1,20 +1,121 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../data/favorites_store.dart';
-import '../data/movies_data.dart';
 import '../models/movie.dart';
+import '../services/tmdb_service.dart';
 import 'movie_detail_screen.dart';
+import 'login_screen.dart';
 
-class FavoritesScreen extends StatelessWidget {
+class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
+
+  @override
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
+}
+
+class _FavoritesScreenState extends State<FavoritesScreen> {
+  List<Movie> _allMovies = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMovies();
+  }
+
+  Future<void> _loadMovies() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      // Load movies from all TMDB categories
+      final nowPlaying = await TmdbService.getNowPlaying();
+      final upcoming = await TmdbService.getUpcoming();
+      final popular = await TmdbService.getPopular();
+      final topRated = await TmdbService.getTopRated();
+      final trending = await TmdbService.getTrending();
+      
+      // Combine all movies and remove duplicates by ID
+      final allTmdbMovies = [...nowPlaying, ...upcoming, ...popular, ...topRated, ...trending];
+      final uniqueMovies = <TmdbMovie>[];
+      final seenIds = <int>{};
+      
+      for (final movie in allTmdbMovies) {
+        if (!seenIds.contains(movie.id)) {
+          seenIds.add(movie.id);
+          uniqueMovies.add(movie);
+        }
+      }
+      
+      // Convert TmdbMovie to Movie for compatibility
+      final allMovies = uniqueMovies.map((tmdbMovie) => Movie(
+        id: tmdbMovie.id.toString(), // Convert int ID to string
+        title: tmdbMovie.title,
+        subtitle: '',
+        posterUrl: tmdbMovie.posterUrl,
+        youtubeTrailerId: '',
+        genres: tmdbMovie.genreIds.map((id) => tmdbGenreMap[id] ?? '').where((g) => g.isNotEmpty).toList(),
+        imdb: tmdbMovie.voteAverage,
+        rottenTomatoes: (tmdbMovie.voteAverage * 10).toInt(),
+        ign: tmdbMovie.voteAverage,
+        duration: '2h 0m', // Default duration
+        rating: tmdbMovie.voteAverage,
+        description: tmdbMovie.overview,
+        directors: '',
+        writers: '',
+        cast: const [],
+        bgColor: 0xFF1A1A1A,
+      )).toList();
+      
+      setState(() { 
+        _allMovies = allMovies;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() { 
+        _error = 'Failed to load movies';
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: FavoritesStore.instance,
       builder: (context, _) {
-        final all = [...nowShowingMovies, ...comingSoonMovies];
-        final favs = FavoritesStore.instance.getFavorites(all);
+        if (_loading) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF0D0D0D),
+            body: const Center(child: CircularProgressIndicator(color: Color(0xFFE5383B))),
+          );
+        }
+        
+        if (_error != null) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF0D0D0D),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_error!, style: const TextStyle(color: Colors.white38)),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadMovies,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE5383B),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+                    ),
+                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        print('Favorites screen - Total movies: ${_allMovies.length}');
+        final favs = FavoritesStore.instance.getFavorites(_allMovies);
+        print('Favorites screen - Found ${favs.length} favorites');
         return Scaffold(
           backgroundColor: const Color(0xFF0D0D0D),
           body: SafeArea(
@@ -28,6 +129,24 @@ class FavoritesScreen extends StatelessWidget {
                       const Text('Favorites',
                         style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                       const Spacer(),
+                      // Sync button for logged in users
+                      if (FavoritesStore.instance.userId != null)
+                        IconButton(
+                          onPressed: () async {
+                            // Manual sync with backend
+                            await FavoritesStore.instance.syncWithBackend();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Favorites synced with server'),
+                                backgroundColor: const Color(0xFF1C1C1E),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.sync, color: Colors.white70, size: 22),
+                          tooltip: 'Sync with server',
+                        ),
                       if (favs.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -66,6 +185,8 @@ class FavoritesScreen extends StatelessWidget {
   }
 
   Widget _buildEmpty() {
+    final isLoggedIn = FavoritesStore.instance.userId != null;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -76,15 +197,46 @@ class FavoritesScreen extends StatelessWidget {
               color: const Color(0xFF1A1A1A),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.bookmark_border_rounded, color: Colors.white24, size: 50),
+            child: Icon(
+              isLoggedIn ? Icons.bookmark_border_rounded : Icons.login,
+              color: Colors.white24, 
+              size: 50
+            ),
           ),
           const SizedBox(height: 20),
-          const Text('No favorites yet',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            isLoggedIn ? 'No favorites yet' : 'Login to save favorites',
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
+          ),
           const SizedBox(height: 8),
-          Text('Tap the bookmark on any movie\nto save it here',
+          Text(
+            isLoggedIn 
+              ? 'Tap the bookmark on any movie\nto save it here'
+              : 'Favorites are saved to your account\nand sync across devices',
             style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 14),
-            textAlign: TextAlign.center),
+            textAlign: TextAlign.center,
+          ),
+          if (!isLoggedIn) ...[
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to login screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE5383B),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text(
+                'Login',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -99,7 +251,22 @@ class _FavCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.push(context,
-        MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie))),
+        MaterialPageRoute(builder: (_) => MovieDetailScreen.fromTmdb(movie: TmdbMovie(
+          id: int.tryParse(movie.id) ?? 0, 
+          title: movie.title, 
+          overview: movie.description, 
+          posterPath: null, 
+          backdropPath: null, 
+          voteAverage: movie.rating, 
+          releaseDate: '', 
+          genreIds: movie.genres.map((g) {
+            // Try to find genre ID from name (reverse lookup)
+            for (final entry in tmdbGenreMap.entries) {
+              if (entry.value == g) return entry.key;
+            }
+            return 0;
+          }).where((id) => id != 0).toList(),
+        )))),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -154,7 +321,32 @@ class _FavCard extends StatelessWidget {
               Positioned(
                 top: 8, right: 8,
                 child: GestureDetector(
-                  onTap: () => FavoritesStore.instance.toggle(movie.id),
+                  onTap: () async {
+                    final isLoggedIn = FavoritesStore.instance.userId != null;
+                    await FavoritesStore.instance.toggle(movie.id);
+                    
+                    if (context.mounted) {
+                      if (isLoggedIn) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Removed from favorites'),
+                            backgroundColor: Color(0xFF1C1C1E),
+                            duration: Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Removed from favorites (local)'),
+                            backgroundColor: Color(0xFF1C1C1E),
+                            duration: Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  },
                   child: Container(
                     width: 32, height: 32,
                     decoration: const BoxDecoration(

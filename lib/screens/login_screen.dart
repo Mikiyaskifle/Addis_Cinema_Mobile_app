@@ -39,8 +39,15 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('user', jsonEncode(res['user']));
         // Save user ID and load their favorites
         final userId = res['user']['id'] ?? res['user']['_id'];
-        await prefs.setString('current_user_id', userId.toString());
-        await FavoritesStore.instance.loadForUser(userId.toString());
+        if (userId != null) {
+          await prefs.setString('current_user_id', userId.toString());
+          await FavoritesStore.instance.loadForUser(userId.toString());
+          // No need to syncToBackend() here - loadForUser() already handles merging
+          // and syncing local favorites to backend
+        } else {
+          print('Warning: userId is null in login response');
+          await FavoritesStore.instance.loadForUser(null);
+        }
         if (mounted) {
           if (widget.returnToPrevious) {
             // Go back to where the user came from (movie detail)
@@ -72,7 +79,27 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 40),
+                // Back/Close button to go to main app without login
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        // Go to main app without logging in (continue as guest)
+                        Navigator.pushAndRemoveUntil(context,
+                          MaterialPageRoute(builder: (_) => const MainShell()), (_) => false);
+                      },
+                      icon: const Icon(Icons.close, color: Colors.white70, size: 24),
+                      tooltip: 'Continue as guest',
+                    ),
+                    const Spacer(),
+                    if (widget.returnToPrevious)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 24),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 // Logo
                 Center(
                   child: Container(
@@ -136,6 +163,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('Sign Up', style: TextStyle(color: Color(0xFFE5383B), fontWeight: FontWeight.bold)),
                   ),
                 ]),
+                const SizedBox(height: 24),
+                // Continue as guest button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      // Go to main app without logging in (continue as guest)
+                      Navigator.pushAndRemoveUntil(context,
+                        MaterialPageRoute(builder: (_) => const MainShell()), (_) => false);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white24),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: const Text(
+                      'Continue as Guest',
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
