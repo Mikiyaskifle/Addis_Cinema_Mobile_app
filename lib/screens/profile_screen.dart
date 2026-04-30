@@ -112,14 +112,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Logged out successfully'),
-          backgroundColor: Color(0xFF1C1C1E),
-          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFFE5383B),
+          duration: Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(20),
         ),
       );
       
       // Navigate after a short delay so user can see the message
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 800));
       
       Navigator.pushAndRemoveUntil(context,
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
@@ -196,14 +197,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         await prefs.setString('user', jsonEncode(res['user']));
                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Profile photo removed'),
-                            backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
+                            backgroundColor: Color(0xFFE5383B), behavior: SnackBarBehavior.floating,
+                            margin: EdgeInsets.all(20), duration: Duration(seconds: 3)));
                       } else {
                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed: ${res['message'] ?? 'Unknown error'}'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
+                          SnackBar(content: Text('Failed: ${res['message'] ?? 'Unknown error'}'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating,
+                            margin: EdgeInsets.all(20), duration: Duration(seconds: 3)));
                       }
                     } catch (e) {
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
+                        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating,
+                          margin: EdgeInsets.all(20), duration: Duration(seconds: 3)));
                     }
                   },
                   child: const Text('Remove Photo', style: TextStyle(color: Colors.white38, fontSize: 13)),
@@ -266,7 +270,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   } catch (_) {}
                 }
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Profile updated'), backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
+                  const SnackBar(content: Text('✅ Profile updated'), backgroundColor: Color(0xFFE5383B), behavior: SnackBarBehavior.floating,
+                    margin: EdgeInsets.all(20), duration: Duration(seconds: 3)));
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5383B),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -350,14 +355,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user', jsonEncode(res['user']));
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Profile photo updated!'), backgroundColor: Color(0xFF1C1C1E), behavior: SnackBarBehavior.floating));
+          const SnackBar(content: Text('✅ Profile photo updated!'), backgroundColor: Color(0xFFE5383B), behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(20), duration: Duration(seconds: 3)));
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: ${res['message'] ?? 'Unknown error'}'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating));
+          SnackBar(content: Text('Upload failed: ${res['message'] ?? 'Unknown error'}'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(20), duration: Duration(seconds: 3)));
       }
     } catch (e) {
       if (mounted) { ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating)); }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red.shade900, behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(20), duration: Duration(seconds: 3))); }
     }
   }
 

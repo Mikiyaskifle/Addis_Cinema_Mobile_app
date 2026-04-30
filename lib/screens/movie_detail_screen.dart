@@ -77,9 +77,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               ? const Center(child: CircularProgressIndicator(color: Color(0xFFE5383B)))
               : Stack(children: [
                   SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 100), // Add padding for fixed button
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       // Trailer / Backdrop
-                      SizedBox(height: 260, child: Stack(fit: StackFit.expand, children: [
+                      SizedBox(
+                        height: 260,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          clipBehavior: Clip.hardEdge, // Prevent overflow
+                          children: [
                         if (_trailerPlaying && _ytController != null)
                           YoutubePlayerBuilder(
                             player: YoutubePlayer(controller: _ytController!, showVideoProgressIndicator: true, progressIndicatorColor: const Color(0xFFE5383B)),
@@ -117,7 +123,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               GestureDetector(
                                 onTap: () async {
                                   final isLoggedIn = _favs.userId != null;
-                                  final wasFavorite = _favs.isFavorite(movieId);
                                   
                                   // Always toggle favorite (locally for guests, locally+backend for logged in)
                                   await _favs.toggle(movieId);
@@ -131,21 +136,24 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                         // User is logged in
                                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                           content: Text(isNowFavorite ? 'Added to favorites' : 'Removed from favorites'),
-                                          backgroundColor: const Color(0xFF1C1C1E), 
-                                          duration: const Duration(seconds: 2), 
-                                          behavior: SnackBarBehavior.floating));
+                                          backgroundColor: const Color(0xFFE5383B), 
+                                          duration: const Duration(seconds: 3), 
+                                          behavior: SnackBarBehavior.floating,
+                                          margin: const EdgeInsets.all(20),
+                                        ));
                                       } else {
                                         // User is guest
                                         if (isNowFavorite) {
                                           // Added to local favorites
                                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                             content: const Text('Added to favorites (local)'),
-                                            backgroundColor: const Color(0xFF1C1C1E), 
-                                            duration: const Duration(seconds: 3), 
+                                            backgroundColor: const Color(0xFFE5383B), 
+                                            duration: const Duration(seconds: 4), 
                                             behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.all(20),
                                             action: SnackBarAction(
                                               label: 'Login to sync',
-                                              textColor: const Color(0xFFE5383B),
+                                              textColor: Colors.white,
                                               onPressed: () {
                                                 Navigator.push(context, 
                                                   MaterialPageRoute(builder: (_) => const LoginScreen(returnToPrevious: true)));
@@ -156,9 +164,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                           // Removed from local favorites
                                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                             content: const Text('Removed from favorites'),
-                                            backgroundColor: const Color(0xFF1C1C1E), 
-                                            duration: const Duration(seconds: 2), 
-                                            behavior: SnackBarBehavior.floating));
+                                            backgroundColor: const Color(0xFFE5383B), 
+                                            duration: const Duration(seconds: 3), 
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.all(20),
+                                          ));
                                         }
                                       }
                                     }
@@ -231,22 +241,55 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         if ((_detail?.cast ?? []).isNotEmpty) ...[
                           const Text('Cast', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 12),
-                          SizedBox(height: 100, child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _detail!.cast.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 12),
-                            itemBuilder: (_, i) {
-                              final c = _detail!.cast[i];
-                              return Column(children: [
-                                ClipRRect(borderRadius: BorderRadius.circular(8),
-                                  child: CachedNetworkImage(imageUrl: c.profileUrl, width: 56, height: 56, fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(width: 56, height: 56, color: const Color(0xFF2A2A2A), child: const Icon(Icons.person, color: Colors.white30)))),
-                                const SizedBox(height: 4),
-                                SizedBox(width: 64, child: Text(c.name, style: const TextStyle(color: Colors.white60, fontSize: 10), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis)),
-                                SizedBox(width: 64, child: Text(c.character, style: const TextStyle(color: Colors.white30, fontSize: 9), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              ]);
-                            },
-                          )),
+                          SizedBox(
+                            height: 120, // Increased height to accommodate text
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _detail!.cast.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 12),
+                              itemBuilder: (_, i) {
+                                final c = _detail!.cast[i];
+                                return SizedBox(
+                                  width: 64, // Fixed width for each cast item
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: CachedNetworkImage(
+                                          imageUrl: c.profileUrl,
+                                          width: 56,
+                                          height: 56,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) => Container(
+                                            width: 56,
+                                            height: 56,
+                                            color: const Color(0xFF2A2A2A),
+                                            child: const Icon(Icons.person, color: Colors.white30),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        c.name,
+                                        style: const TextStyle(color: Colors.white60, fontSize: 10),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        c.character,
+                                        style: const TextStyle(color: Colors.white30, fontSize: 9),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                           const SizedBox(height: 20),
                         ],
                         // Directors
@@ -272,21 +315,43 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           const SizedBox(height: 24),
                           const Text('More like this', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 12),
-                          SizedBox(height: 160, child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _detail!.similar.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 10),
-                            itemBuilder: (_, i) {
-                              final s = _detail!.similar[i];
-                              return GestureDetector(
-                                onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MovieDetailScreen.fromTmdb(movie: s))),
-                                child: ClipRRect(borderRadius: BorderRadius.circular(12),
-                                  child: CachedNetworkImage(imageUrl: s.posterUrl, width: 110, height: 160, fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(width: 110, height: 160, color: const Color(0xFF2A2A2A), child: const Icon(Icons.movie, color: Colors.white30)))));
-                            },
-                          )),
+                          SizedBox(
+                            height: 160,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _detail!.similar.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 10),
+                              itemBuilder: (_, i) {
+                                final s = _detail!.similar[i];
+                                return SizedBox(
+                                  width: 110,
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => MovieDetailScreen.fromTmdb(movie: s)),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: CachedNetworkImage(
+                                        imageUrl: s.posterUrl,
+                                        width: 110,
+                                        height: 160,
+                                        fit: BoxFit.cover,
+                                        errorWidget: (_, __, ___) => Container(
+                                          width: 110,
+                                          height: 160,
+                                          color: const Color(0xFF2A2A2A),
+                                          child: const Icon(Icons.movie, color: Colors.white30),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ],
-                        const SizedBox(height: 100),
+                        const SizedBox(height: 40), // Reduced from 100 to account for padding
                       ])),
                     ]),
                   ),

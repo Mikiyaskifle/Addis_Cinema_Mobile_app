@@ -138,9 +138,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: const Text('Favorites synced with server'),
-                                backgroundColor: const Color(0xFF1C1C1E),
-                                duration: const Duration(seconds: 2),
+                                backgroundColor: const Color(0xFFE5383B),
+                                duration: const Duration(seconds: 3),
                                 behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.all(20),
                               ),
                             );
                           },
@@ -330,18 +331,20 @@ class _FavCard extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Removed from favorites'),
-                            backgroundColor: Color(0xFF1C1C1E),
-                            duration: Duration(seconds: 1),
+                            backgroundColor: Color(0xFFE5383B),
+                            duration: Duration(seconds: 3),
                             behavior: SnackBarBehavior.floating,
+                            margin: EdgeInsets.all(20),
                           ),
                         );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Removed from favorites (local)'),
-                            backgroundColor: Color(0xFF1C1C1E),
-                            duration: Duration(seconds: 1),
+                            backgroundColor: Color(0xFFE5383B),
+                            duration: Duration(seconds: 3),
                             behavior: SnackBarBehavior.floating,
+                            margin: EdgeInsets.all(20),
                           ),
                         );
                       }

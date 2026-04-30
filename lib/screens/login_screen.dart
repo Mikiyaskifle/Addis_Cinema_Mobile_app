@@ -121,15 +121,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 40),
                 if (_error != null) ...[
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.red.withOpacity(0.3))),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.15), 
+                      borderRadius: BorderRadius.circular(12), 
+                      border: Border.all(color: Colors.red.withOpacity(0.5), width: 1.5)
+                    ),
                     child: Row(children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13))),
+                      const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.w500))),
                     ]),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                 ],
                 _buildField('Email', _emailCtrl, Icons.email_outlined, keyboardType: TextInputType.emailAddress,
                   validator: (v) => v!.isEmpty ? 'Enter email' : null),

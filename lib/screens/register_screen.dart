@@ -92,11 +92,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 32),
                 if (_error != null) ...[
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.red.withOpacity(0.3))),
-                    child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.15), 
+                      borderRadius: BorderRadius.circular(12), 
+                      border: Border.all(color: Colors.red.withOpacity(0.5), width: 1.5)
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.w500))),
+                    ]),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                 ],
                 _buildField('Full Name', _nameCtrl, Icons.person_outline, validator: (v) => v!.isEmpty ? 'Enter name' : null),
                 const SizedBox(height: 16),
