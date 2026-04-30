@@ -20,17 +20,21 @@ Cinema booking in Ethiopia is mostly done manually — people go to the cinema, 
 
 ### 🎥 Movies
 - Horizontal carousel with dynamic background color per movie
-- Now Showing / Coming Soon tabs
+- Now Showing / Coming Soon tabs powered by TMDB API
 - Genre filter chips
-- 14 movies with real YouTube trailer IDs
+- Real-time movie data from The Movie Database (TMDB)
+- Search functionality to find movies
+- Popular, Top Rated, and Trending movie categories
 
 ### 🎞 Movie Detail
 - Inline YouTube trailer (lazy-loaded on tap)
-- IMDB / Rotten Tomatoes / IGN ratings
-- Cast, Directors, Writers, Storyline
-- "More like this" section
+- Real-time ratings and reviews from TMDB
+- Cast, Directors, Writers, Storyline with actual movie data
+- "More like this" section with similar movies
 - Bookmark to Favorites
 - Buy Tickets requires login
+- Runtime display with formatted duration
+- Movie status (Released, In Production, etc.)
 
 ### 💺 Seat Selection
 - Interactive 8×9 seat grid (72 seats)
@@ -118,6 +122,7 @@ Cinema booking in Ethiopia is mostly done manually — people go to the cinema, 
 | permission_handler | Storage & camera permissions |
 | image_picker | Profile photo from gallery |
 | http | REST API calls |
+| TMDB API | Real-time movie data integration |
 
 ### Backend
 | Tool | Usage |
@@ -187,16 +192,21 @@ npm run dev
 │   ├── providers/
 │   │   └── app_settings.dart        # Theme + Amharic language
 │   ├── services/
-│   │   └── api_service.dart         # All backend API calls
+│   │   ├── api_service.dart         # All backend API calls
+│   │   └── tmdb_service.dart        # TMDB API integration
 │   └── screens/
 │       ├── splash_screen.dart
 │       ├── main_shell.dart          # 4-tab floating bottom nav
 │       ├── movies_screen.dart
 │       ├── movie_detail_screen.dart
 │       ├── select_seats_screen.dart
+│       ├── select_seats_screen_tmdb.dart
 │       ├── concession_screen.dart
+│       ├── concession_screen_tmdb.dart
 │       ├── payment_screen.dart
+│       ├── payment_screen_tmdb.dart
 │       ├── booking_confirmation_screen.dart
+│       ├── booking_confirmation_screen_tmdb.dart
 │       ├── favorites_screen.dart
 │       ├── tickets_screen.dart
 │       ├── profile_screen.dart
@@ -240,14 +250,36 @@ npm run dev
 
 | Item | Count |
 |------|-------|
-| Screens | 13 |
-| Movies | 14 (8 Now Showing, 6 Coming Soon) |
+| Screens | 17 |
+| Movies | Real-time from TMDB API |
 | Food & drink items | 16 |
 | Ethiopian payment methods | 4 |
 | API endpoints | 12 |
-| Lines of code | ~3,500+ |
+| TMDB API endpoints | 7 (Now Playing, Upcoming, Popular, Top Rated, Trending, Search, Movie Details) |
+| Lines of code | ~4,000+ |
 
 ---
+
+## 🎬 TMDB Integration
+
+The application now integrates with **The Movie Database (TMDB)** API to provide real-time movie data:
+
+### Features Enabled by TMDB:
+- **Real-time Movie Data**: Now Showing and Coming Soon movies fetched live from TMDB
+- **Movie Search**: Search functionality across TMDB's extensive movie database
+- **Detailed Movie Information**: Cast, crew, trailers, ratings, and similar movies
+- **Multiple Categories**: Access to Popular, Top Rated, and Trending movies
+- **High-Quality Images**: Movie posters and backdrops in multiple resolutions
+- **YouTube Trailers**: Direct integration with YouTube for movie trailers
+
+### TMDB API Endpoints Used:
+- `/movie/now_playing` - Current movies in theaters
+- `/movie/upcoming` - Upcoming movie releases
+- `/movie/popular` - Popular movies
+- `/movie/top_rated` - Top rated movies
+- `/trending/movie/day` - Daily trending movies
+- `/search/movie` - Movie search functionality
+- `/movie/{id}` - Detailed movie information with credits and videos
 
 ## 🔐 Security
 
@@ -256,6 +288,7 @@ npm run dev
 - All profile/booking routes protected by auth middleware
 - Buy Tickets requires authentication
 - Favorites tied to user account
+- TMDB API token secured in service layer
 
 ---
 
@@ -264,9 +297,12 @@ npm run dev
 - Deploy backend to cloud (Render / Railway)
 - Real payment gateway integration
 - Push notifications for booking reminders
-- Movie search functionality
 - Admin dashboard for cinema management
 - iOS support
+- Enhanced movie recommendations using TMDB data
+- User reviews and ratings system
+- Social sharing features
+- Offline mode for browsing movies
 
 ---
 
